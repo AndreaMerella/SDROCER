@@ -2,188 +2,389 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="theme-color" content="#050505">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>SDROCER</title>
-    
-    <!-- PWA Link -->
-    <link rel="manifest" href="manifest.json">
-    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ANDREA MERELLA // HYBRID WORKSTATION</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Space+Mono:ital,wght@0,400;0,700;1,700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg: #050505;
-            --yellow: #FFD700;
-            --panel: #111;
-            --font: 'Helvetica Neue', Arial, sans-serif;
+            --acid-yellow: #ccff00;
+            --hot-pink: #ff00ff;
+            --cyan: #00ffff;
+            --electric-blue: #0044ff;
+            --black: #090909;
+            --white: #f4f4f0;
         }
 
-        * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-        body { background: var(--bg); color: #fff; font-family: var(--font); height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
-
-        /* THE YELLOW TEXT LOGO */
-        header { padding: 30px 20px; background: #000; border-bottom: 1px solid #222; text-align: center; }
-        .logo { 
-            font-weight: 900; 
-            letter-spacing: 8px; 
-            color: var(--yellow); 
-            font-size: 1.8rem; 
-            text-shadow: 0 0 15px rgba(255, 215, 0, 0.3);
+        body {
+            background-color: var(--white);
+            color: var(--black);
+            font-family: 'Space Mono', monospace;
+            overflow-x: hidden;
+            /* Coder Grid Background */
+            background-image: 
+                linear-gradient(rgba(0,0,0,0.1) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0,0,0,0.1) 1px, transparent 1px);
+            background-size: 20px 20px;
         }
 
-        .engine { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
-        .status-text { font-family: monospace; color: #444; font-size: 0.7rem; margin-bottom: 20px; letter-spacing: 2px; text-transform: uppercase; }
-
-        canvas { width: 100%; height: 80px; margin-bottom: 40px; }
-
-        /* ACTION BUTTON */
-        .btn-listen {
-            width: 200px; height: 200px; border-radius: 50%;
-            background: #000; border: 4px solid #222; color: #fff;
-            font-size: 1.2rem; font-weight: 900; letter-spacing: 3px; cursor: pointer;
-            transition: 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+        .loud-font {
+            font-family: 'Bungee', cursive;
+            line-height: 0.9;
         }
-        .btn-listen.active { 
-            border-color: var(--yellow); 
-            color: var(--yellow); 
-            transform: scale(1.05);
-            box-shadow: 0 0 40px rgba(255, 215, 0, 0.2);
-            animation: pulse 1s infinite alternate; 
-        }
-        @keyframes pulse { from { opacity: 0.8; } to { opacity: 1; } }
 
-        /* RESULTS */
-        .result-card { display: none; width: 100%; max-width: 400px; background: var(--panel); border: 1px solid #333; padding: 25px; text-align: center; margin-top: 20px; animation: slideUp 0.4s ease; }
-        @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        /* --- MARQUEE ANIMATION --- */
+        .marquee-container {
+            background: var(--electric-blue);
+            color: var(--acid-yellow);
+            white-space: nowrap;
+            overflow: hidden;
+            padding: 12px 0;
+            border-top: 4px solid var(--black);
+            border-bottom: 4px solid var(--black);
+            box-shadow: 0 8px 0px var(--black);
+            position: relative;
+            z-index: 50;
+        }
+        .marquee-content {
+            display: inline-block;
+            animation: slide 15s linear infinite;
+            font-weight: 900;
+            font-size: 1.5rem;
+            text-transform: uppercase;
+        }
+        @keyframes slide {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-50%); }
+        }
+
+        /* --- POP-BRUTALIST CARDS --- */
+        .brutal-card {
+            background: var(--white);
+            border: 4px solid var(--black);
+            box-shadow: 8px 8px 0px var(--black);
+            transition: all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            position: relative;
+        }
+        .brutal-card:hover {
+            transform: translate(-6px, -6px);
+            box-shadow: 14px 14px 0px var(--hot-pink);
+            border-color: var(--electric-blue);
+        }
         
-        .track-title { font-size: 1.6rem; font-weight: 900; color: #fff; margin-bottom: 5px; text-transform: uppercase; }
-        .track-artist { font-size: 1rem; color: var(--yellow); font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
+        .brutal-card.cyan-shadow:hover { box-shadow: 14px 14px 0px var(--cyan); }
+        .brutal-card.yellow-shadow:hover { box-shadow: 14px 14px 0px var(--acid-yellow); }
 
-        /* CRATE TRAY */
-        .crate-tray { height: 160px; background: #000; border-top: 2px solid #222; padding: 20px; display: flex; gap: 15px; overflow-x: auto; }
-        .crate-item { 
-            min-width: 130px; background: #0a0a0a; border: 1px solid #333; padding: 15px; 
-            border-bottom: 4px solid var(--yellow); display: flex; flex-direction: column; justify-content: flex-end;
+        /* --- EXTREME PICTURE ANIMATIONS --- */
+        .img-container {
+            width: 100%;
+            aspect-ratio: 16/9;
+            overflow: hidden;
+            border-bottom: 4px solid var(--black);
+            position: relative;
+            background: var(--black);
         }
-        .c-title { font-size: 0.75rem; font-weight: 900; color: #fff; text-transform: uppercase; overflow: hidden; text-overflow: ellipsis; }
+        .img-fit {
+            width: 100%;
+            height: 100%;
+            object-fit: cover; /* Ensures perfect fit to screen/container */
+            filter: grayscale(100%) contrast(1.2);
+            transform: scale(1);
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .brutal-card:hover .img-fit {
+            filter: grayscale(0%) contrast(1.1) saturate(1.5);
+            transform: scale(1.1) rotate(1deg);
+        }
+
+        /* --- STICKERS & BADGES --- */
+        .badge {
+            position: absolute;
+            top: -15px; left: -15px;
+            background: var(--acid-yellow);
+            color: var(--black);
+            border: 3px solid var(--black);
+            padding: 5px 15px;
+            font-weight: 900;
+            transform: rotate(-5deg);
+            z-index: 20;
+            box-shadow: 4px 4px 0 var(--black);
+            animation: pulse-rotate 2s infinite alternate;
+        }
+        @keyframes pulse-rotate {
+            0% { transform: rotate(-5deg) scale(1); }
+            100% { transform: rotate(-8deg) scale(1.05); }
+        }
+
+        /* --- VINYL AUDIO DECK --- */
+        .turntable {
+            width: 90px; height: 90px;
+            background: #111;
+            border-radius: 50%;
+            border: 4px solid var(--black);
+            position: relative;
+            transition: 0.3s;
+            box-shadow: 4px 4px 0px var(--black);
+        }
+        .turntable::after {
+            content: '';
+            position: absolute;
+            top: 50%; left: 50%;
+            width: 25px; height: 25px;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            border: 3px solid var(--black);
+        }
+        .spotify-vinyl::after { background: #1db954; }
+        .soundcloud-vinyl::after { background: #ff5500; }
+        
+        .spinning { animation: spin 2s linear infinite; }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+
+        .player-drawer {
+            max-height: 0; opacity: 0; overflow: hidden;
+            transition: all 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        }
+        .player-drawer.active { max-height: 400px; opacity: 1; margin-top: 20px; }
+
+        .interactive { cursor: pointer; }
+
+        /* Tags */
+        .tag {
+            display: inline-block;
+            background: var(--black);
+            color: var(--white);
+            padding: 4px 10px;
+            font-size: 0.75rem;
+            font-weight: 900;
+            text-transform: uppercase;
+            border: 2px solid var(--black);
+        }
+        .tag.hot { background: var(--hot-pink); color: var(--black); }
+        .tag.cyan { background: var(--cyan); color: var(--black); }
     </style>
 </head>
-<body>
+<body class="selection:bg-pink-500 selection:text-white pb-20">
 
-    <header><div class="logo">SDROCER</div></header>
-
-    <main class="engine">
-        <div class="status-text" id="ui-status">SYSTEM READY</div>
-        <canvas id="visualizer"></canvas>
-        <button class="btn-listen" id="listenBtn" onclick="startScanner()">LISTEN</button>
-
-        <div class="result-card" id="resultCard">
-            <div class="track-title" id="resTitle">--</div>
-            <div class="track-artist" id="resArtist">--</div>
+    <!-- LOUD TICKER -->
+    <div class="marquee-container interactive" data-sound="blip">
+        <div class="marquee-content loud-font">
+            ✦ CREATIVE DEVELOPER ✦ POST-PRODUCTION ✦ MUSIC VIDEOS ✦ MTV BROADCAST VET ✦ HYBRID WORKSTATION ACTIVE ✦ CREATIVE DEVELOPER ✦ POST-PRODUCTION ✦ MUSIC VIDEOS ✦ MTV BROADCAST VET ✦ HYBRID WORKSTATION ACTIVE ✦
         </div>
-    </main>
+    </div>
 
-    <div class="crate-tray" id="crateTray"></div>
+    <!-- NAV -->
+    <nav class="p-6 md:p-10 flex justify-between items-center max-w-7xl mx-auto">
+        <div class="loud-font text-4xl interactive text-[var(--electric-blue)]" data-sound="synth">
+            AM<span class="text-[var(--hot-pink)]">.</span>
+        </div>
+        <div class="space-x-4 font-black uppercase text-sm">
+            <a href="#projects" class="hover:bg-[var(--hot-pink)] hover:text-white border-2 border-transparent hover:border-black px-3 py-1 transition-all interactive" data-sound="blip">Projects</a>
+            <a href="#audio" class="hover:bg-[var(--cyan)] hover:text-black border-2 border-transparent hover:border-black px-3 py-1 transition-all interactive" data-sound="blip">Audio</a>
+        </div>
+    </nav>
 
-    <script>
-        const API_KEY = '3a6bd57d80mshf946fc2ae39c0dp13ecb2jsn1a8465611b4b'; 
-        let myCrate = JSON.parse(localStorage.getItem('sdrocer_crate')) || [];
+    <!-- IMPACT HERO (No Bio, Just Roles) -->
+    <header class="py-16 px-6 max-w-7xl mx-auto flex flex-col items-start relative">
+        <div class="badge text-xl">LIVE TRANSMISSION</div>
         
-        const listenBtn = document.getElementById('listenBtn');
-        const uiStatus = document.getElementById('ui-status');
-        const resultCard = document.getElementById('resultCard');
-        const canvas = document.getElementById('visualizer');
-        const canvasCtx = canvas.getContext('2d');
+        <h1 class="loud-font text-[4rem] md:text-[8rem] uppercase text-black drop-shadow-[6px_6px_0px_#0044ff] mb-6">
+            ANDREA <br> MERELLA
+        </h1>
+        
+        <div class="flex flex-wrap gap-3 mb-10">
+            <span class="tag">Post-Production</span>
+            <span class="tag hot">Music Videos</span>
+            <span class="tag cyan">Creative Developer</span>
+            <span class="tag">Audio Engineering</span>
+            <span class="tag">MTV Broadcast Channel Ops</span>
+        </div>
 
-        renderCrate();
+        <div class="bg-[var(--acid-yellow)] border-4 border-black p-4 font-bold text-lg max-w-2xl shadow-[6px_6px_0px_#000]">
+            Building the <span class="loud-font text-xl text-[var(--electric-blue)]">HYBRID WORKSTATION</span>. Highly organized infrastructure meets high-voltage underground design. 
+        </div>
+    </header>
 
-        // Register Service Worker for PWA
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('sw.js');
-        }
-
-        async function startScanner() {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                listenBtn.innerText = "LISTENING";
-                listenBtn.classList.add('active');
-                resultCard.style.display = 'none';
-                uiStatus.innerText = "CAPTURING AUDIO...";
-
-                const mediaRecorder = new MediaRecorder(stream);
-                let chunks = [];
-                mediaRecorder.ondataavailable = e => chunks.push(e.data);
-                
-                mediaRecorder.onstop = async () => {
-                    uiStatus.innerText = "IDENTIFYING...";
-                    listenBtn.innerText = "WAIT";
-                    stream.getTracks().forEach(t => t.stop());
-                    const blob = new Blob(chunks, { type: 'audio/webm' });
-                    const reader = new FileReader();
-                    reader.readAsDataURL(blob);
-                    reader.onloadend = async () => {
-                        const base64 = reader.result.split(',')[1];
-                        sendToShazam(base64);
-                    };
-                };
-
-                mediaRecorder.start();
-                setTimeout(() => mediaRecorder.stop(), 5000); 
-            } catch (err) { 
-                alert("Microphone Access Denied. Check Permissions."); 
-            }
-        }
-
-        async function sendToShazam(base64) {
-            try {
-                const response = await fetch('https://shazam.p.rapidapi.com/songs/v2/detect', {
-                    method: 'POST',
-                    headers: { 'X-RapidAPI-Key': API_KEY, 'content-type': 'text/plain' },
-                    body: base64
-                });
-                const data = await response.json();
-                if (data.track) {
-                    showResult(data.track.title, data.track.subtitle);
-                } else {
-                    uiStatus.innerText = "NO MATCH FOUND";
-                    resetBtn();
-                }
-            } catch (e) { 
-                uiStatus.innerText = "CONNECTION ERROR"; 
-                resetBtn(); 
-            }
-        }
-
-        function showResult(title, artist) {
-            listenBtn.style.display = 'none';
-            resultCard.style.display = 'block';
-            uiStatus.innerText = "TRACK SECURED";
-            document.getElementById('resTitle').innerText = title;
-            document.getElementById('resArtist').innerText = artist;
+    <!-- THE PROJECTS -->
+    <section id="projects" class="px-6 py-20 max-w-7xl mx-auto">
+        <h2 class="loud-font text-5xl md:text-7xl mb-12 bg-black text-white inline-block px-4 py-2 transform -rotate-1 shadow-[8px_8px_0px_#ff00ff]">
+            DEPLOYED PROJECTS
+        </h2>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-12">
             
-            myCrate.push({ title, artist });
-            localStorage.setItem('sdrocer_crate', JSON.stringify(myCrate));
-            renderCrate();
-            setTimeout(resetBtn, 5000);
-        }
-
-        function resetBtn() {
-            listenBtn.style.display = 'flex';
-            listenBtn.innerText = "LISTEN";
-            listenBtn.classList.remove('active');
-            uiStatus.innerText = "SYSTEM READY";
-        }
-
-        function renderCrate() {
-            document.getElementById('crateTray').innerHTML = myCrate.map(r => `
-                <div class="crate-item">
-                    <div class="c-title">${r.title}</div>
-                    <div style="font-size:0.55rem; color:#666; margin-top:4px;">${r.artist}</div>
+            <!-- DrisLab (Audio-Visual) -->
+            <a href="https://andreamerella.github.io/DrisLab/" target="_blank" class="brutal-card cyan-shadow block interactive" data-sound="synth">
+                <div class="badge" style="background: var(--cyan);">AUDIO/VISUAL</div>
+                <div class="img-container">
+                    <img src="https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=1200&q=80" alt="DrisLab" class="img-fit">
                 </div>
-            `).reverse().join('');
+                <div class="p-8">
+                    <h3 class="loud-font text-4xl mb-3 text-[var(--electric-blue)]">Dris_Lab</h3>
+                    <p class="font-bold text-sm mb-4">Post-production concepts, experimental web architecture, and interactive audio-visual environments.</p>
+                    <span class="bg-black text-white px-4 py-2 font-black uppercase text-xs">Execute Hub →</span>
+                </div>
+            </a>
+
+            <!-- Mattie Web3 -->
+            <a href="https://andreamerellaaudio.wixsite.com/driscreativelab/mattie-web3" target="_blank" class="brutal-card yellow-shadow block interactive" data-sound="synth">
+                <div class="badge">WEB3 CONCEPT</div>
+                <div class="img-container">
+                    <img src="https://images.unsplash.com/photo-1639762681485-074b7f4ec651?auto=format&fit=crop&w=1200&q=80" alt="Mattie Web3" class="img-fit">
+                </div>
+                <div class="p-8">
+                    <h3 class="loud-font text-4xl mb-3">Mattie Web3</h3>
+                    <p class="font-bold text-sm mb-4">Decentralized creative lab. Blending blockchain integration with highly energetic visual layouts.</p>
+                    <span class="bg-black text-white px-4 py-2 font-black uppercase text-xs">Execute Hub →</span>
+                </div>
+            </a>
+
+            <!-- Heavy Marine Utility -->
+            <a href="https://andreamerella.github.io/Heavy-Marine-Utilities/" target="_blank" class="brutal-card block interactive" data-sound="synth">
+                <div class="badge" style="background: var(--hot-pink); color: white;">INDUSTRIAL</div>
+                <div class="img-container">
+                    <img src="https://images.unsplash.com/photo-1504328345606-18bbc8c9d7d1?auto=format&fit=crop&w=1200&q=80" alt="HMU" class="img-fit">
+                </div>
+                <div class="p-8">
+                    <h3 class="loud-font text-4xl mb-3 text-[var(--hot-pink)]">Heavy Marine Utility</h3>
+                    <p class="font-bold text-sm mb-4">Reclaimed cargo terminal. High-end technical fashion engineered from harvested racing sails.</p>
+                    <span class="bg-black text-white px-4 py-2 font-black uppercase text-xs">Execute Hub →</span>
+                </div>
+            </a>
+
+            <!-- Vngrd Core -->
+            <a href="https://vngrd-core.github.io/" target="_blank" class="brutal-card block interactive" data-sound="synth">
+                <div class="badge" style="background: var(--white);">FRAMEWORK</div>
+                <div class="img-container">
+                    <img src="https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=1200&q=80" alt="Vngrd Core" class="img-fit">
+                </div>
+                <div class="p-8">
+                    <h3 class="loud-font text-4xl mb-3">Vngrd Core</h3>
+                    <p class="font-bold text-sm mb-4">Structured, highly organized technical framework laying the groundwork for complex web deployments.</p>
+                    <span class="bg-black text-white px-4 py-2 font-black uppercase text-xs">Execute Hub →</span>
+                </div>
+            </a>
+
+        </div>
+    </section>
+
+    <!-- AUDIO ENGINE (The Deck) -->
+    <section id="audio" class="px-6 py-20 max-w-7xl mx-auto">
+        <h2 class="loud-font text-5xl md:text-7xl mb-12 bg-[var(--electric-blue)] text-white inline-block px-4 py-2 transform rotate-1 shadow-[8px_8px_0px_#ccff00]">
+            AUDIO & MUSIC
+        </h2>
+        
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-12">
+            
+            <!-- Spotify Deck -->
+            <div class="brutal-card p-8 bg-[var(--white)] interactive" onclick="toggleDeck('spotify', this)" data-sound="drop">
+                <div class="flex items-center gap-6">
+                    <div class="turntable spotify-vinyl" id="disc-spotify"></div>
+                    <div>
+                        <h4 class="loud-font text-3xl">SPOTIFY</h4>
+                        <p class="bg-black text-[var(--acid-yellow)] px-2 py-1 text-xs font-black uppercase mt-2 inline-block">Drop the needle ↓</p>
+                    </div>
+                </div>
+                <div id="player-spotify" class="player-drawer">
+                    <iframe style="border-radius:0; border: 4px solid #000;" src="https://open.spotify.com/embed/artist/0XPPJdH7cRPxVBSjXfi9iE?utm_source=generator&theme=0" width="100%" height="352" frameBorder="0" allow="autoplay; encrypted-media"></iframe>
+                </div>
+            </div>
+
+            <!-- SoundCloud Deck -->
+            <div class="brutal-card cyan-shadow p-8 bg-[var(--cyan)] interactive" onclick="toggleDeck('soundcloud', this)" data-sound="drop">
+                <div class="flex items-center gap-6">
+                    <div class="turntable soundcloud-vinyl" id="disc-soundcloud"></div>
+                    <div>
+                        <h4 class="loud-font text-3xl text-black">SOUNDCLOUD</h4>
+                        <p class="bg-black text-[var(--cyan)] px-2 py-1 text-xs font-black uppercase mt-2 inline-block">Drop the needle ↓</p>
+                    </div>
+                </div>
+                <div id="player-soundcloud" class="player-drawer">
+                    <iframe width="100%" height="352" scrolling="no" frameborder="no" allow="autoplay" style="border-radius:0; border: 4px solid #000;" src="https://w.soundcloud.com/player/?url=https%3A//soundcloud.com/andrea_merella&color=%23ff00ff&auto_play=false&hide_related=false&show_comments=true&show_user=true&show_reposts=false&show_teaser=true&visual=true"></iframe>
+                </div>
+            </div>
+
+        </div>
+    </section>
+
+    <footer class="mt-20 border-t-8 border-black bg-[var(--hot-pink)] text-black font-black text-center py-10 uppercase text-lg">
+        TRANSMISSION TERMINATED // ANDREA MERELLA // 2026
+    </footer>
+
+    <!-- INTERACTIVITY & AUDIO SYNTH -->
+    <script>
+        // Interactive Vinyl Deck Logic
+        function toggleDeck(id, el) {
+            const player = document.getElementById('player-' + id);
+            const disc = document.getElementById('disc-' + id);
+            
+            if (player.classList.contains('active')) {
+                player.classList.remove('active');
+                disc.classList.remove('spinning');
+            } else {
+                player.classList.add('active');
+                disc.classList.add('spinning');
+            }
         }
+
+        // High-Energy Web Audio Synthesizer
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        
+        function playSfx(type) {
+            if (ctx.state === 'suspended') ctx.resume();
+            
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            
+            const now = ctx.currentTime;
+            
+            if (type === 'synth') {
+                // Energetic MTV-style Synth Slide
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(400, now);
+                osc.frequency.exponentialRampToValueAtTime(800, now + 0.1);
+                gain.gain.setValueAtTime(0.05, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+                osc.start(now); osc.stop(now + 0.15);
+            } else if (type === 'drop') {
+                // Heavy Bass Drop for Vinyl clicks
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(150, now);
+                osc.frequency.exponentialRampToValueAtTime(40, now + 0.3);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+                osc.start(now); osc.stop(now + 0.3);
+            } else {
+                // Quick Menu Blip
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(1200, now);
+                gain.gain.setValueAtTime(0.03, now);
+                gain.gain.linearRampToValueAtTime(0, now + 0.05);
+                osc.start(now); osc.stop(now + 0.05);
+            }
+        }
+
+        // Attach sounds
+        document.querySelectorAll('.interactive').forEach(el => {
+            el.addEventListener('mouseenter', () => {
+                if (window.innerWidth > 768) {
+                    let st = el.dataset.sound;
+                    if (st !== 'drop') playSfx(st || 'blip');
+                }
+            });
+            el.addEventListener('click', () => {
+                if (ctx.state === 'suspended') ctx.resume();
+                if (el.dataset.sound === 'drop') playSfx('drop');
+            });
+        });
+        
+        // Context Unlock
+        document.body.addEventListener('click', () => {
+            if(ctx.state === 'suspended') ctx.resume();
+        }, { once: true });
     </script>
 </body>
 </html>
