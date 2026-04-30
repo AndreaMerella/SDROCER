@@ -3,12 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SDROCER | MASTER BUILD</title>
+    <meta name="theme-color" content="#050505">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>SDROCER</title>
+    
+    <!-- PWA Link -->
+    <link rel="manifest" href="manifest.json">
+    
     <style>
         :root {
             --bg: #050505;
             --yellow: #FFD700;
-            --yellow-dim: rgba(255, 215, 0, 0.15);
             --panel: #111;
             --font: 'Helvetica Neue', Arial, sans-serif;
         }
@@ -16,293 +22,167 @@
         * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
         body { background: var(--bg); color: #fff; font-family: var(--font); height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
 
-        /* HEADER & TOGGLE */
-        header { padding: 15px 20px; background: #000; border-bottom: 1px solid #222; display: flex; justify-content: space-between; align-items: center; }
-        .logo { font-weight: 900; letter-spacing: 4px; color: var(--yellow); font-size: 1.2rem; }
-        
-        .mode-switch { display: flex; background: #1a1a1a; border-radius: 4px; padding: 4px; border: 1px solid #333; }
-        .mode-btn { background: none; border: none; color: #666; padding: 6px 12px; font-size: 0.6rem; font-weight: 900; cursor: pointer; letter-spacing: 1px; }
-        .mode-btn.active { color: #000; background: var(--yellow); border-radius: 2px; }
+        /* THE YELLOW TEXT LOGO */
+        header { padding: 30px 20px; background: #000; border-bottom: 1px solid #222; text-align: center; }
+        .logo { 
+            font-weight: 900; 
+            letter-spacing: 8px; 
+            color: var(--yellow); 
+            font-size: 1.8rem; 
+            text-shadow: 0 0 15px rgba(255, 215, 0, 0.3);
+        }
 
-        /* SETTINGS PANEL */
-        #settings-panel { display: none; background: #111; padding: 15px; border-bottom: 1px solid #333; text-align: center; }
-        input[type="text"] { width: 80%; padding: 10px; background: #000; border: 1px solid #444; color: var(--yellow); font-family: monospace; font-size: 0.8rem; margin-bottom: 10px; }
-        .btn-small { background: #333; color: #fff; border: none; padding: 8px 15px; font-size: 0.7rem; cursor: pointer; font-weight: bold; }
+        .engine { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
+        .status-text { font-family: monospace; color: #444; font-size: 0.7rem; margin-bottom: 20px; letter-spacing: 2px; text-transform: uppercase; }
 
-        /* MAIN ENGINE & VISUALIZER */
-        .engine { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; position: relative; }
-        
-        .status-text { font-family: monospace; color: #666; font-size: 0.7rem; margin-bottom: 20px; letter-spacing: 2px; }
+        canvas { width: 100%; height: 80px; margin-bottom: 40px; }
 
-        .visualizer-container { width: 100%; height: 120px; margin-bottom: 30px; display: none; }
-        canvas { width: 100%; height: 100%; }
-
-        /* THE LISTEN BUTTON */
+        /* ACTION BUTTON */
         .btn-listen {
-            width: 170px; height: 170px; border-radius: 50%;
-            background: linear-gradient(145deg, #111, #000); border: 3px solid #333; color: #fff;
-            font-size: 1.1rem; font-weight: 900; letter-spacing: 2px; cursor: pointer;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.9); transition: all 0.3s ease; display: flex; align-items: center; justify-content: center; z-index: 10;
+            width: 200px; height: 200px; border-radius: 50%;
+            background: #000; border: 4px solid #222; color: #fff;
+            font-size: 1.2rem; font-weight: 900; letter-spacing: 3px; cursor: pointer;
+            transition: 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.5);
         }
-        .btn-listen:active { transform: scale(0.96); box-shadow: 0 5px 15px rgba(0,0,0,0.9); }
-        .btn-listen.listening {
-            border-color: var(--yellow); color: var(--yellow);
-            box-shadow: 0 0 50px var(--yellow-dim); animation: pulse 1.5s infinite alternate;
+        .btn-listen.active { 
+            border-color: var(--yellow); 
+            color: var(--yellow); 
+            transform: scale(1.05);
+            box-shadow: 0 0 40px rgba(255, 215, 0, 0.2);
+            animation: pulse 1s infinite alternate; 
         }
+        @keyframes pulse { from { opacity: 0.8; } to { opacity: 1; } }
 
-        @keyframes pulse { 0% { transform: scale(1); box-shadow: 0 0 20px var(--yellow-dim); } 100% { transform: scale(1.05); box-shadow: 0 0 60px rgba(255, 215, 0, 0.4); } }
-
-        /* RESULT CARD */
-        .result-card {
-            display: none; width: 100%; max-width: 350px; background: var(--panel); border: 1px solid #333; padding: 20px; text-align: center; border-radius: 4px;
-        }
-        .track-title { font-size: 1.4rem; color: #fff; font-weight: 900; margin-bottom: 5px; text-transform: uppercase; }
-        .track-artist { font-size: 0.9rem; color: var(--yellow); margin-bottom: 15px; font-weight: bold; text-transform: uppercase; }
-        .meta-data { display: flex; justify-content: center; gap: 20px; font-family: monospace; font-size: 1.1rem; color: #fff; }
-        .meta-data span { color: #666; font-size: 0.6rem; display: block; margin-bottom: 2px; }
-
-        /* SESSION CRATE */
-        .crate-tray { height: 140px; background: #000; border-top: 2px solid #222; padding: 15px; display: flex; gap: 10px; overflow-x: auto; }
-        .crate-item { 
-            min-width: 110px; background: #0a0a0a; border: 1px solid #333; padding: 12px; 
-            display: flex; flex-direction: column; justify-content: flex-end; border-bottom: 3px solid var(--yellow);
-        }
-        .c-title { font-size: 0.7rem; font-weight: 900; color: #fff; margin-bottom: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .c-bpm { font-size: 0.65rem; color: var(--yellow); font-family: monospace; }
+        /* RESULTS */
+        .result-card { display: none; width: 100%; max-width: 400px; background: var(--panel); border: 1px solid #333; padding: 25px; text-align: center; margin-top: 20px; animation: slideUp 0.4s ease; }
+        @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
         
-        .clear-btn { position: absolute; bottom: 150px; right: 20px; background: none; border: none; color: #444; font-size: 0.6rem; cursor: pointer; }
+        .track-title { font-size: 1.6rem; font-weight: 900; color: #fff; margin-bottom: 5px; text-transform: uppercase; }
+        .track-artist { font-size: 1rem; color: var(--yellow); font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
+
+        /* CRATE TRAY */
+        .crate-tray { height: 160px; background: #000; border-top: 2px solid #222; padding: 20px; display: flex; gap: 15px; overflow-x: auto; }
+        .crate-item { 
+            min-width: 130px; background: #0a0a0a; border: 1px solid #333; padding: 15px; 
+            border-bottom: 4px solid var(--yellow); display: flex; flex-direction: column; justify-content: flex-end;
+        }
+        .c-title { font-size: 0.75rem; font-weight: 900; color: #fff; text-transform: uppercase; overflow: hidden; text-overflow: ellipsis; }
     </style>
 </head>
 <body>
 
-    <header>
-        <div class="logo">SDROCER</div>
-        <div class="mode-switch">
-            <button class="mode-btn active" id="btn-demo" onclick="setMode('demo')">DEMO</button>
-            <button class="mode-btn" id="btn-live" onclick="setMode('live')">LIVE</button>
-        </div>
-    </header>
-
-    <div id="settings-panel">
-        <div style="font-size:0.7rem; color:#888; margin-bottom:10px;">ENTER RAPIDAPI SHAZAM KEY</div>
-        <input type="text" id="api-key-input" placeholder="Paste key here...">
-        <br>
-        <button class="btn-small" onclick="saveKey()">SAVE KEY</button>
-    </div>
+    <header><div class="logo">SDROCER</div></header>
 
     <main class="engine">
         <div class="status-text" id="ui-status">SYSTEM READY</div>
-
-        <div class="visualizer-container" id="vis-container"><canvas id="visualizer"></canvas></div>
-
+        <canvas id="visualizer"></canvas>
         <button class="btn-listen" id="listenBtn" onclick="startScanner()">LISTEN</button>
 
         <div class="result-card" id="resultCard">
             <div class="track-title" id="resTitle">--</div>
             <div class="track-artist" id="resArtist">--</div>
-            <div class="meta-data">
-                <div><span>BPM</span><div id="resBpm">--</div></div>
-                <div><span>KEY</span><div id="resKey">--</div></div>
-            </div>
         </div>
     </main>
 
-    <button class="clear-btn" onclick="clearCrate()">CLEAR CRATE</button>
     <div class="crate-tray" id="crateTray"></div>
 
     <script>
-        // CORE VARIABLES
-        let currentMode = 'demo';
-        let apiKey = localStorage.getItem('sdrocer_api_key') || '';
+        const API_KEY = '3a6bd57d80mshf946fc2ae39c0dp13ecb2jsn1a8465611b4b'; 
         let myCrate = JSON.parse(localStorage.getItem('sdrocer_crate')) || [];
         
-        // DOM ELEMENTS
         const listenBtn = document.getElementById('listenBtn');
         const uiStatus = document.getElementById('ui-status');
-        const visContainer = document.getElementById('vis-container');
         const resultCard = document.getElementById('resultCard');
-        const crateTray = document.getElementById('crateTray');
-        const settingsPanel = document.getElementById('settings-panel');
         const canvas = document.getElementById('visualizer');
         const canvasCtx = canvas.getContext('2d');
 
-        // AUDIO VISUALIZER SETUP
-        let audioCtx, analyser, dataArray, bufferLength, animationId;
-
-        // MOCK DATABASE FOR DEMO MODE
-        const mockDb = [
-            { title: "Spastik", artist: "Plastikman", bpm: 130, key: "8A" },
-            { title: "Windowlicker", artist: "Aphex Twin", bpm: 127, key: "9A" },
-            { title: "Crispy Bacon", artist: "Laurent Garnier", bpm: 128, key: "11B" },
-            { title: "Good Life", artist: "Inner City", bpm: 121, key: "2A" },
-            { title: "Voodoo Ray", artist: "A Guy Called Gerald", bpm: 120, key: "7A" }
-        ];
-
-        // INIT
-        document.getElementById('api-key-input').value = apiKey;
         renderCrate();
 
-        function setMode(mode) {
-            currentMode = mode;
-            document.getElementById('btn-demo').classList.remove('active');
-            document.getElementById('btn-live').classList.remove('active');
-            document.getElementById(`btn-${mode}`).classList.add('active');
-            
-            settingsPanel.style.display = mode === 'live' ? 'block' : 'none';
-            uiStatus.innerText = mode === 'demo' ? "DEMO MODE ACTIVE" : "LIVE MODE ACTIVE";
-        }
-
-        function saveKey() {
-            apiKey = document.getElementById('api-key-input').value.trim();
-            localStorage.setItem('sdrocer_api_key', apiKey);
-            settingsPanel.style.display = 'none';
-            uiStatus.innerText = "API KEY SAVED.";
-        }
-
-        function initVisualizer(stream) {
-            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            analyser = audioCtx.createAnalyser();
-            const source = audioCtx.createMediaStreamSource(stream);
-            source.connect(analyser);
-            analyser.fftSize = 64; 
-            bufferLength = analyser.frequencyBinCount;
-            dataArray = new Uint8Array(bufferLength);
-            canvas.width = visContainer.offsetWidth;
-            canvas.height = visContainer.offsetHeight;
-            drawVisualizer();
-        }
-
-        function drawVisualizer() {
-            animationId = requestAnimationFrame(drawVisualizer);
-            analyser.getByteFrequencyData(dataArray);
-            canvasCtx.fillStyle = '#050505';
-            canvasCtx.fillRect(0, 0, canvas.width, canvas.height);
-            const barWidth = (canvas.width / bufferLength) * 1.5;
-            let x = 0;
-            for (let i = 0; i < bufferLength; i++) {
-                let barHeight = dataArray[i] / 2;
-                canvasCtx.fillStyle = `rgb(255, ${215 - (barHeight/2)}, 0)`; 
-                canvasCtx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
-                x += barWidth + 3;
-            }
+        // Register Service Worker for PWA
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js');
         }
 
         async function startScanner() {
-            if (currentMode === 'live' && !apiKey) {
-                alert("Please enter a RapidAPI Key in the settings panel to use Live Mode.");
-                return;
-            }
-
             try {
-                uiStatus.innerText = "ACCESSING MIC...";
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                
-                // UI State
-                listenBtn.innerText = "RECORDING";
-                listenBtn.classList.add('listening');
+                listenBtn.innerText = "LISTENING";
+                listenBtn.classList.add('active');
                 resultCard.style.display = 'none';
-                visContainer.style.display = 'block';
-                uiStatus.innerText = "ANALYZING FREQUENCIES...";
-
-                initVisualizer(stream);
+                uiStatus.innerText = "CAPTURING AUDIO...";
 
                 const mediaRecorder = new MediaRecorder(stream);
-                let audioChunks = [];
-                mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
-
+                let chunks = [];
+                mediaRecorder.ondataavailable = e => chunks.push(e.data);
+                
                 mediaRecorder.onstop = async () => {
-                    cancelAnimationFrame(animationId);
-                    stream.getTracks().forEach(t => t.stop()); 
-                    
-                    uiStatus.innerText = "QUERYING DATABASE...";
-                    listenBtn.innerText = "PROCESSING";
-                    listenBtn.classList.remove('listening');
-                    visContainer.style.display = 'none';
-
-                    if (currentMode === 'demo') {
-                        setTimeout(() => {
-                            const track = mockDb[Math.floor(Math.random() * mockDb.length)];
-                            processSuccess(track.title, track.artist, track.bpm, track.key);
-                        }, 1500);
-                    } else {
-                        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-                        processLiveAudio(audioBlob);
-                    }
+                    uiStatus.innerText = "IDENTIFYING...";
+                    listenBtn.innerText = "WAIT";
+                    stream.getTracks().forEach(t => t.stop());
+                    const blob = new Blob(chunks, { type: 'audio/webm' });
+                    const reader = new FileReader();
+                    reader.readAsDataURL(blob);
+                    reader.onloadend = async () => {
+                        const base64 = reader.result.split(',')[1];
+                        sendToShazam(base64);
+                    };
                 };
 
                 mediaRecorder.start();
-                setTimeout(() => mediaRecorder.stop(), 4000); // 4 Second Scan
-
-            } catch (err) {
-                alert("Microphone required. Please allow access.");
-                uiStatus.innerText = "SYSTEM READY";
+                setTimeout(() => mediaRecorder.stop(), 5000); 
+            } catch (err) { 
+                alert("Microphone Access Denied. Check Permissions."); 
             }
         }
 
-        async function processLiveAudio(blob) {
-            const reader = new FileReader();
-            reader.readAsDataURL(blob); 
-            reader.onloadend = async () => {
-                const base64Audio = reader.result.split(',')[1];
-                try {
-                    const response = await fetch('https://shazam.p.rapidapi.com/songs/v2/detect', {
-                        method: 'POST',
-                        headers: { 'content-type': 'text/plain', 'X-RapidAPI-Key': apiKey, 'X-RapidAPI-Host': 'shazam.p.rapidapi.com' },
-                        body: base64Audio
-                    });
-                    const data = await response.json();
-                    
-                    if (data.track) {
-                        const bpm = Math.floor(Math.random() * (132 - 124) + 124); // Fallback BPM
-                        const key = ["8A", "9A", "11B", "7A"][Math.floor(Math.random() * 4)];
-                        processSuccess(data.track.title, data.track.subtitle, bpm, key);
-                    } else {
-                        uiStatus.innerText = "NO MATCH FOUND";
-                        listenBtn.innerText = "LISTEN";
-                    }
-                } catch (error) {
-                    uiStatus.innerText = "API CONNECTION FAILED. CHECK KEY.";
-                    listenBtn.innerText = "LISTEN";
+        async function sendToShazam(base64) {
+            try {
+                const response = await fetch('https://shazam.p.rapidapi.com/songs/v2/detect', {
+                    method: 'POST',
+                    headers: { 'X-RapidAPI-Key': API_KEY, 'content-type': 'text/plain' },
+                    body: base64
+                });
+                const data = await response.json();
+                if (data.track) {
+                    showResult(data.track.title, data.track.subtitle);
+                } else {
+                    uiStatus.innerText = "NO MATCH FOUND";
+                    resetBtn();
                 }
-            };
+            } catch (e) { 
+                uiStatus.innerText = "CONNECTION ERROR"; 
+                resetBtn(); 
+            }
         }
 
-        function processSuccess(title, artist, bpm, key) {
+        function showResult(title, artist) {
             listenBtn.style.display = 'none';
             resultCard.style.display = 'block';
             uiStatus.innerText = "TRACK SECURED";
-
             document.getElementById('resTitle').innerText = title;
             document.getElementById('resArtist').innerText = artist;
-            document.getElementById('resBpm').innerText = bpm;
-            document.getElementById('resKey').innerText = key;
-
-            const newRec = { id: Date.now(), title, artist, bpm, key };
-            myCrate.push(newRec);
+            
+            myCrate.push({ title, artist });
             localStorage.setItem('sdrocer_crate', JSON.stringify(myCrate));
             renderCrate();
+            setTimeout(resetBtn, 5000);
+        }
 
-            setTimeout(() => {
-                listenBtn.style.display = 'flex';
-                listenBtn.innerText = "LISTEN";
-            }, 3000);
+        function resetBtn() {
+            listenBtn.style.display = 'flex';
+            listenBtn.innerText = "LISTEN";
+            listenBtn.classList.remove('active');
+            uiStatus.innerText = "SYSTEM READY";
         }
 
         function renderCrate() {
-            crateTray.innerHTML = myCrate.map(r => `
+            document.getElementById('crateTray').innerHTML = myCrate.map(r => `
                 <div class="crate-item">
-                    <div class="c-title">${r.title.toUpperCase()}</div>
-                    <div class="c-bpm">${r.bpm} BPM / ${r.key}</div>
+                    <div class="c-title">${r.title}</div>
+                    <div style="font-size:0.55rem; color:#666; margin-top:4px;">${r.artist}</div>
                 </div>
-            `).join('');
-        }
-
-        function clearCrate() {
-            if(confirm("Clear current session crate?")) {
-                myCrate = [];
-                localStorage.removeItem('sdrocer_crate');
-                renderCrate();
-            }
+            `).reverse().join('');
         }
     </script>
 </body>
