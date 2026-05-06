@@ -129,6 +129,7 @@
             resultCard.style.display = 'none';
             listenBtn.innerText = 'LISTENING';
             listenBtn.classList.add('active');
+            uiStatus.style.color = '#444'; // reset any error colour
             setStatus('REQUESTING MIC...');
 
             // 1. Mic access
@@ -143,8 +144,8 @@
                     }
                 });
             } catch (err) {
-                setStatus(`MIC DENIED: ${err.name}`);
-                resetBtn();
+                setError(`MIC DENIED: ${err.name} — ${err.message}`);
+                resetBtnUI();
                 return;
             }
 
@@ -273,45 +274,50 @@
                 });
                 rawText = await response.text();
             } catch (netErr) {
-                setStatus(`NETWORK ERR: ${netErr.message}`);
-                resetBtn();
+                setError(`NETWORK ERR: ${netErr.message}`);
+                resetBtnUI();
                 return;
             }
 
             // Non-2xx → show exact HTTP status + body excerpt
             if (!response.ok) {
-                setStatus(`HTTP ${response.status}: ${rawText.slice(0, 120)}`);
-                resetBtn();
+                setError(`HTTP ${response.status}: ${rawText.slice(0, 200)}`);
+                resetBtnUI();
                 return;
             }
 
-            // Parse JSON defensively
+            // Parse JSON defensively — show raw text on failure
             let data;
             try {
                 data = JSON.parse(rawText);
             } catch (_) {
-                setStatus(`BAD JSON: ${rawText.slice(0, 120)}`);
-                resetBtn();
+                setError(`BAD JSON: ${rawText.slice(0, 200)}`);
+                resetBtnUI();
                 return;
             }
 
             if (data && data.track) {
                 showResult(data.track.title, data.track.subtitle);
             } else if (data && data.message) {
-                setStatus(`API MSG: ${data.message}`);
-                resetBtn();
+                setError(`API MSG: ${data.message}`);
+                resetBtnUI();
             } else {
-                // Dump top-level keys so we can see what came back
+                // Dump top-level keys + first 200 chars of raw response so we can see exactly what came back
                 const keys = data ? Object.keys(data).join(' | ') : '(empty)';
-                setStatus(`NO MATCH — RESP KEYS: ${keys}`);
-                resetBtn();
+                setError(`NO MATCH. KEYS: ${keys} || RAW: ${rawText.slice(0, 150)}`);
+                resetBtnUI();
             }
         }
 
         // ─── UI HELPERS ──────────────────────────────────────────────────────
-        function setStatus(msg) {
+        function setStatus(msg, isError = false) {
             uiStatus.innerText = msg;
+            uiStatus.style.color = isError ? '#ff4444' : '#444';
             console.log('[SDROCER]', msg);
+        }
+
+        function setError(msg) {
+            setStatus(msg, true);
         }
 
         function showResult(title, artist) {
@@ -327,11 +333,18 @@
             setTimeout(resetBtn, 5000);
         }
 
-        function resetBtn() {
+        // Resets button UI only — leaves status visible so errors can be read.
+        // Call this after any failure so the user can retry without being blind.
+        function resetBtnUI() {
             isScanning = false;
             listenBtn.style.display = '';
             listenBtn.innerText = 'LISTEN';
             listenBtn.classList.remove('active');
+        }
+
+        // Full reset including status — only used after a successful match timeout.
+        function resetBtn() {
+            resetBtnUI();
             setStatus('SYSTEM READY');
         }
 
