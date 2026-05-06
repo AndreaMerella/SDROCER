@@ -61,6 +61,37 @@
         .track-title { font-size: 1.6rem; font-weight: 900; color: #fff; margin-bottom: 5px; text-transform: uppercase; }
         .track-artist { font-size: 1rem; color: var(--yellow); font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
 
+        /* MODE TOGGLE */
+        .mode-toggle { display: flex; gap: 0; margin-bottom: 20px; border: 1px solid #333; }
+        .mode-btn {
+            flex: 1; padding: 8px 0; background: transparent; border: none; color: #444;
+            font-family: monospace; font-size: 0.65rem; letter-spacing: 2px; cursor: pointer;
+            text-transform: uppercase; transition: 0.2s;
+        }
+        .mode-btn.active { background: #111; color: var(--yellow); }
+
+        /* SEARCH MODE */
+        .search-panel { display: none; flex-direction: column; align-items: center; width: 100%; max-width: 360px; gap: 10px; }
+        .search-panel.visible { display: flex; }
+        .search-input {
+            width: 100%; background: #000; border: 1px solid #333; border-bottom: 3px solid var(--yellow);
+            color: #fff; font-family: monospace; font-size: 1rem; letter-spacing: 1px;
+            padding: 14px 16px; outline: none; text-transform: uppercase;
+        }
+        .search-input::placeholder { color: #333; }
+        .search-btn {
+            width: 100%; padding: 14px; background: var(--yellow); border: none;
+            color: #000; font-weight: 900; letter-spacing: 3px; font-size: 0.85rem; cursor: pointer;
+        }
+        .search-results { width: 100%; display: flex; flex-direction: column; gap: 8px; max-height: 220px; overflow-y: auto; }
+        .search-result-item {
+            background: #0a0a0a; border: 1px solid #333; border-left: 3px solid var(--yellow);
+            padding: 12px 14px; cursor: pointer; transition: 0.15s;
+        }
+        .search-result-item:active { background: #1a1a1a; }
+        .sri-title { font-size: 0.8rem; font-weight: 900; color: #fff; text-transform: uppercase; }
+        .sri-artist { font-size: 0.65rem; color: var(--yellow); margin-top: 3px; text-transform: uppercase; letter-spacing: 1px; }
+
         /* CRATE TRAY */
         .crate-tray { height: 160px; background: #000; border-top: 2px solid #222; padding: 20px; display: flex; gap: 15px; overflow-x: auto; }
         .crate-item {
@@ -76,8 +107,23 @@
 
     <main class="engine">
         <div class="status-text" id="ui-status">SYSTEM READY</div>
+
+        <!-- mode switcher -->
+        <div class="mode-toggle">
+            <button class="mode-btn active" id="modeScan" onclick="switchMode('scan')">SCAN</button>
+            <button class="mode-btn"        id="modeSearch" onclick="switchMode('search')">SEARCH</button>
+        </div>
+
+        <!-- SCAN mode -->
         <canvas id="visualizer"></canvas>
         <button class="btn-listen" id="listenBtn" onclick="startScanner()">LISTEN</button>
+
+        <!-- SEARCH mode -->
+        <div class="search-panel" id="searchPanel">
+            <input  class="search-input" id="searchInput" type="text" placeholder="TRACK OR ARTIST..." autocomplete="off" spellcheck="false">
+            <button class="search-btn" onclick="runSearch()">SEARCH SHAZAM DB</button>
+            <div class="search-results" id="searchResults"></div>
+        </div>
 
         <div class="result-card" id="resultCard">
             <div class="track-title" id="resTitle">--</div>
@@ -396,6 +442,98 @@
 
         function clearCanvas() {
             canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+
+        // ─── MODE SWITCHER ───────────────────────────────────────────────────
+        function switchMode(mode) {
+            const isScan = mode === 'scan';
+            document.getElementById('modeScan').classList.toggle('active', isScan);
+            document.getElementById('modeSearch').classList.toggle('active', !isScan);
+
+            document.getElementById('visualizer').style.display  = isScan ? '' : 'none';
+            document.getElementById('listenBtn').style.display   = isScan ? '' : 'none';
+            document.getElementById('searchPanel').classList.toggle('visible', !isScan);
+            document.getElementById('resultCard').style.display  = 'none';
+            document.getElementById('searchResults').innerHTML   = '';
+            document.getElementById('searchInput').value         = '';
+            setStatus(isScan ? 'SYSTEM READY' : 'TYPE TO SEARCH SHAZAM DB');
+            uiStatus.style.color = '#444';
+        }
+
+        // ─── TEXT SEARCH ─────────────────────────────────────────────────────
+        // Wire Enter key on the input
+        document.getElementById('searchInput').addEventListener('keydown', e => {
+            if (e.key === 'Enter') runSearch();
+        });
+
+        async function runSearch() {
+            const term = document.getElementById('searchInput').value.trim();
+            if (!term) return;
+
+            setStatus('SEARCHING...');
+            document.getElementById('searchResults').innerHTML = '';
+
+            let response, rawText;
+            try {
+                const url = `https://shazam.p.rapidapi.com/search?term=${encodeURIComponent(term)}&locale=en-US&offset=0&limit=6`;
+                response = await fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'X-RapidAPI-Key':  API_KEY,
+                        'X-RapidAPI-Host': API_HOST
+                    }
+                });
+                rawText = await response.text();
+            } catch (netErr) {
+                setError(`NETWORK ERR: ${netErr.message}`);
+                return;
+            }
+
+            if (!response.ok) {
+                setError(`HTTP ${response.status}: ${rawText.slice(0, 200)}`);
+                return;
+            }
+
+            let data;
+            try { data = JSON.parse(rawText); }
+            catch (_) { setError(`BAD JSON: ${rawText.slice(0, 120)}`); return; }
+
+            const hits = data?.tracks?.hits;
+            if (!hits || hits.length === 0) {
+                setError(`NO RESULTS FOR "${term}"`);
+                return;
+            }
+
+            setStatus(`${hits.length} RESULTS`);
+            uiStatus.style.color = '#444';
+            const container = document.getElementById('searchResults');
+
+            hits.forEach(hit => {
+                const track  = hit.track;
+                if (!track) return;
+                const title  = track.title    || '—';
+                const artist = track.subtitle || '—';
+
+                const item = document.createElement('div');
+                item.className = 'search-result-item';
+
+                const t = document.createElement('div');
+                t.className   = 'sri-title';
+                t.textContent = title;
+
+                const a = document.createElement('div');
+                a.className   = 'sri-artist';
+                a.textContent = artist;
+
+                item.appendChild(t);
+                item.appendChild(a);
+                item.addEventListener('click', () => {
+                    container.innerHTML = '';
+                    showResult(title, artist);
+                    switchMode('scan');
+                });
+                container.appendChild(item);
+            });
         }
     </script>
 </body>
