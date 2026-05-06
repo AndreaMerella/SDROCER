@@ -7,10 +7,10 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>SDROCER</title>
-    
+
     <!-- PWA Link -->
     <link rel="manifest" href="manifest.json">
-    
+
     <style>
         :root {
             --bg: #050505;
@@ -24,11 +24,11 @@
 
         /* THE YELLOW TEXT LOGO */
         header { padding: 30px 20px; background: #000; border-bottom: 1px solid #222; text-align: center; }
-        .logo { 
-            font-weight: 900; 
-            letter-spacing: 8px; 
-            color: var(--yellow); 
-            font-size: 1.8rem; 
+        .logo {
+            font-weight: 900;
+            letter-spacing: 8px;
+            color: var(--yellow);
+            font-size: 1.8rem;
             text-shadow: 0 0 15px rgba(255, 215, 0, 0.3);
         }
 
@@ -45,26 +45,26 @@
             transition: 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             box-shadow: 0 20px 40px rgba(0,0,0,0.5);
         }
-        .btn-listen.active { 
-            border-color: var(--yellow); 
-            color: var(--yellow); 
+        .btn-listen.active {
+            border-color: var(--yellow);
+            color: var(--yellow);
             transform: scale(1.05);
             box-shadow: 0 0 40px rgba(255, 215, 0, 0.2);
-            animation: pulse 1s infinite alternate; 
+            animation: pulse 1s infinite alternate;
         }
         @keyframes pulse { from { opacity: 0.8; } to { opacity: 1; } }
 
         /* RESULTS */
         .result-card { display: none; width: 100%; max-width: 400px; background: var(--panel); border: 1px solid #333; padding: 25px; text-align: center; margin-top: 20px; animation: slideUp 0.4s ease; }
         @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-        
+
         .track-title { font-size: 1.6rem; font-weight: 900; color: #fff; margin-bottom: 5px; text-transform: uppercase; }
         .track-artist { font-size: 1rem; color: var(--yellow); font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
 
         /* CRATE TRAY */
         .crate-tray { height: 160px; background: #000; border-top: 2px solid #222; padding: 20px; display: flex; gap: 15px; overflow-x: auto; }
-        .crate-item { 
-            min-width: 130px; background: #0a0a0a; border: 1px solid #333; padding: 15px; 
+        .crate-item {
+            min-width: 130px; background: #0a0a0a; border: 1px solid #333; padding: 15px;
             border-bottom: 4px solid var(--yellow); display: flex; flex-direction: column; justify-content: flex-end;
         }
         .c-title { font-size: 0.75rem; font-weight: 900; color: #fff; text-transform: uppercase; overflow: hidden; text-overflow: ellipsis; }
@@ -88,81 +88,239 @@
     <div class="crate-tray" id="crateTray"></div>
 
     <script>
-        const API_KEY = '3a6bd57d80mshf946fc2ae39c0dp13ecb2jsn1a8465611b4b'; 
-        let myCrate = JSON.parse(localStorage.getItem('sdrocer_crate')) || [];
-        
-        const listenBtn = document.getElementById('listenBtn');
-        const uiStatus = document.getElementById('ui-status');
-        const resultCard = document.getElementById('resultCard');
-        const canvas = document.getElementById('visualizer');
-        const canvasCtx = canvas.getContext('2d');
+        // ─── CONFIG ──────────────────────────────────────────────────────────
+        const API_KEY       = '3a6bd57d80mshf946fc2ae39c0dp13ecb2jsn1a8465611b4b';
+        const API_HOST      = 'shazam.p.rapidapi.com';
+        const API_URL       = 'https://shazam.p.rapidapi.com/songs/v2/detect';
+        const RECORD_SECS   = 5;
 
+        // ─── STATE ───────────────────────────────────────────────────────────
+        let myCrate   = JSON.parse(localStorage.getItem('sdrocer_crate')) || [];
+        let isScanning = false;
+        let vizFrame;
+
+        // ─── DOM REFS ────────────────────────────────────────────────────────
+        const listenBtn  = document.getElementById('listenBtn');
+        const uiStatus   = document.getElementById('ui-status');
+        const resultCard = document.getElementById('resultCard');
+        const canvas     = document.getElementById('visualizer');
+        const canvasCtx  = canvas.getContext('2d');
+
+        // ─── INIT ────────────────────────────────────────────────────────────
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
         renderCrate();
 
-        // Register Service Worker for PWA
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('sw.js');
+            navigator.serviceWorker.register('sw.js').catch(() => {});
         }
 
+        // ─── CANVAS RESIZE ───────────────────────────────────────────────────
+        function resizeCanvas() {
+            canvas.width  = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
+        }
+
+        // ─── MAIN SCANNER ────────────────────────────────────────────────────
         async function startScanner() {
+            if (isScanning) return;
+            isScanning = true;
+
+            resultCard.style.display = 'none';
+            listenBtn.innerText = 'LISTENING';
+            listenBtn.classList.add('active');
+            setStatus('REQUESTING MIC...');
+
+            // 1. Mic access
+            let stream;
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                listenBtn.innerText = "LISTENING";
-                listenBtn.classList.add('active');
-                resultCard.style.display = 'none';
-                uiStatus.innerText = "CAPTURING AUDIO...";
+                stream = await navigator.mediaDevices.getUserMedia({
+                    audio: {
+                        channelCount:       1,
+                        echoCancellation:   false,
+                        noiseSuppression:   false,
+                        autoGainControl:    false
+                    }
+                });
+            } catch (err) {
+                setStatus(`MIC DENIED: ${err.name}`);
+                resetBtn();
+                return;
+            }
 
-                const mediaRecorder = new MediaRecorder(stream);
-                let chunks = [];
-                mediaRecorder.ondataavailable = e => chunks.push(e.data);
-                
-                mediaRecorder.onstop = async () => {
-                    uiStatus.innerText = "IDENTIFYING...";
-                    listenBtn.innerText = "WAIT";
-                    stream.getTracks().forEach(t => t.stop());
-                    const blob = new Blob(chunks, { type: 'audio/webm' });
-                    const reader = new FileReader();
-                    reader.readAsDataURL(blob);
-                    reader.onloadend = async () => {
-                        const base64 = reader.result.split(',')[1];
-                        sendToShazam(base64);
-                    };
-                };
+            // 2. AudioContext — webkit prefix for older iOS Safari
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            const audioCtx = new AudioCtx();
 
-                mediaRecorder.start();
-                setTimeout(() => mediaRecorder.stop(), 5000); 
-            } catch (err) { 
-                alert("Microphone Access Denied. Check Permissions."); 
+            // iOS suspends AudioContext until a user-gesture tick — resume it
+            if (audioCtx.state === 'suspended') {
+                await audioCtx.resume();
+            }
+
+            const sampleRate  = audioCtx.sampleRate;   // actual system rate
+            const source      = audioCtx.createMediaStreamSource(stream);
+            const analyser    = audioCtx.createAnalyser();
+            analyser.fftSize  = 256;
+
+            // ScriptProcessorNode is deprecated but universally supported,
+            // including iOS Safari where AudioWorklet support is inconsistent.
+            const processor   = audioCtx.createScriptProcessor(4096, 1, 1);
+            const allSamples  = [];
+            const totalNeeded = sampleRate * RECORD_SECS;
+
+            processor.onaudioprocess = (e) => {
+                if (allSamples.length < totalNeeded) {
+                    const chunk = e.inputBuffer.getChannelData(0);
+                    for (let i = 0; i < chunk.length; i++) {
+                        allSamples.push(chunk[i]);
+                    }
+                }
+            };
+
+            source.connect(analyser);
+            analyser.connect(processor);
+            // Must connect to destination for onaudioprocess to fire in some browsers
+            processor.connect(audioCtx.destination);
+
+            setStatus('CAPTURING AUDIO...');
+            drawVisualizer(analyser);
+
+            // 3. Record for RECORD_SECS
+            await new Promise(resolve => setTimeout(resolve, RECORD_SECS * 1000));
+
+            // 4. Tear down audio graph cleanly
+            processor.onaudioprocess = null;
+            processor.disconnect();
+            analyser.disconnect();
+            source.disconnect();
+            stream.getTracks().forEach(t => t.stop());
+            await audioCtx.close();
+
+            cancelAnimationFrame(vizFrame);
+            clearCanvas();
+
+            listenBtn.innerText = 'ANALYZING';
+            setStatus('ENCODING WAV...');
+
+            // 5. Build WAV and base64-encode
+            const pcm    = new Float32Array(allSamples.slice(0, totalNeeded));
+            const wavBuf = encodeWAV(pcm, sampleRate);
+            const b64    = arrayBufferToBase64(wavBuf);
+
+            // 6. Send
+            await sendToShazam(b64);
+        }
+
+        // ─── WAV ENCODER ─────────────────────────────────────────────────────
+        // Produces a standard 16-bit mono WAV — the format Shazam handles best.
+        function encodeWAV(samples, sampleRate) {
+            const numSamples = samples.length;
+            const buf  = new ArrayBuffer(44 + numSamples * 2);
+            const view = new DataView(buf);
+
+            const str = (off, s) => {
+                for (let i = 0; i < s.length; i++) view.setUint8(off + i, s.charCodeAt(i));
+            };
+
+            str(0,  'RIFF');
+            view.setUint32(4,  36 + numSamples * 2, true); // remaining file size
+            str(8,  'WAVE');
+            str(12, 'fmt ');
+            view.setUint32(16, 16, true);              // subchunk1 size (PCM)
+            view.setUint16(20, 1,  true);              // audio format: PCM
+            view.setUint16(22, 1,  true);              // channels: mono
+            view.setUint32(24, sampleRate, true);      // sample rate
+            view.setUint32(28, sampleRate * 2, true);  // byte rate
+            view.setUint16(32, 2,  true);              // block align
+            view.setUint16(34, 16, true);              // bits per sample
+            str(36, 'data');
+            view.setUint32(40, numSamples * 2, true);
+
+            let offset = 44;
+            for (let i = 0; i < numSamples; i++) {
+                const s = Math.max(-1, Math.min(1, samples[i]));
+                view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+                offset += 2;
+            }
+            return buf;
+        }
+
+        // Chunked to avoid call-stack overflow on large WAV buffers
+        function arrayBufferToBase64(buffer) {
+            const bytes  = new Uint8Array(buffer);
+            const CHUNK  = 8192;
+            let   binary = '';
+            for (let i = 0; i < bytes.length; i += CHUNK) {
+                binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
+            }
+            return btoa(binary);
+        }
+
+        // ─── SHAZAM API ──────────────────────────────────────────────────────
+        async function sendToShazam(b64) {
+            setStatus('PINGING SHAZAM...');
+            let response, rawText;
+
+            try {
+                response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'X-RapidAPI-Key':  API_KEY,
+                        'X-RapidAPI-Host': API_HOST,
+                        'content-type':    'text/plain'
+                    },
+                    body: b64
+                });
+                rawText = await response.text();
+            } catch (netErr) {
+                setStatus(`NETWORK ERR: ${netErr.message}`);
+                resetBtn();
+                return;
+            }
+
+            // Non-2xx → show exact HTTP status + body excerpt
+            if (!response.ok) {
+                setStatus(`HTTP ${response.status}: ${rawText.slice(0, 120)}`);
+                resetBtn();
+                return;
+            }
+
+            // Parse JSON defensively
+            let data;
+            try {
+                data = JSON.parse(rawText);
+            } catch (_) {
+                setStatus(`BAD JSON: ${rawText.slice(0, 120)}`);
+                resetBtn();
+                return;
+            }
+
+            if (data && data.track) {
+                showResult(data.track.title, data.track.subtitle);
+            } else if (data && data.message) {
+                setStatus(`API MSG: ${data.message}`);
+                resetBtn();
+            } else {
+                // Dump top-level keys so we can see what came back
+                const keys = data ? Object.keys(data).join(' | ') : '(empty)';
+                setStatus(`NO MATCH — RESP KEYS: ${keys}`);
+                resetBtn();
             }
         }
 
-        async function sendToShazam(base64) {
-            try {
-                const response = await fetch('https://shazam.p.rapidapi.com/songs/v2/detect', {
-                    method: 'POST',
-                    headers: { 'X-RapidAPI-Key': API_KEY, 'content-type': 'text/plain' },
-                    body: base64
-                });
-                const data = await response.json();
-                if (data.track) {
-                    showResult(data.track.title, data.track.subtitle);
-                } else {
-                    uiStatus.innerText = "NO MATCH FOUND";
-                    resetBtn();
-                }
-            } catch (e) { 
-                uiStatus.innerText = "CONNECTION ERROR"; 
-                resetBtn(); 
-            }
+        // ─── UI HELPERS ──────────────────────────────────────────────────────
+        function setStatus(msg) {
+            uiStatus.innerText = msg;
+            console.log('[SDROCER]', msg);
         }
 
         function showResult(title, artist) {
             listenBtn.style.display = 'none';
             resultCard.style.display = 'block';
-            uiStatus.innerText = "TRACK SECURED";
-            document.getElementById('resTitle').innerText = title;
+            setStatus('TRACK SECURED');
+            document.getElementById('resTitle').innerText  = title;
             document.getElementById('resArtist').innerText = artist;
-            
+
             myCrate.push({ title, artist });
             localStorage.setItem('sdrocer_crate', JSON.stringify(myCrate));
             renderCrate();
@@ -170,19 +328,61 @@
         }
 
         function resetBtn() {
-            listenBtn.style.display = 'flex';
-            listenBtn.innerText = "LISTEN";
+            isScanning = false;
+            listenBtn.style.display = '';
+            listenBtn.innerText = 'LISTEN';
             listenBtn.classList.remove('active');
-            uiStatus.innerText = "SYSTEM READY";
+            setStatus('SYSTEM READY');
         }
 
+        // Safe DOM build — no innerHTML with user data
         function renderCrate() {
-            document.getElementById('crateTray').innerHTML = myCrate.map(r => `
-                <div class="crate-item">
-                    <div class="c-title">${r.title}</div>
-                    <div style="font-size:0.55rem; color:#666; margin-top:4px;">${r.artist}</div>
-                </div>
-            `).reverse().join('');
+            const tray = document.getElementById('crateTray');
+            tray.innerHTML = '';
+            [...myCrate].reverse().forEach(r => {
+                const item = document.createElement('div');
+                item.className = 'crate-item';
+
+                const t = document.createElement('div');
+                t.className   = 'c-title';
+                t.textContent = r.title;
+
+                const a = document.createElement('div');
+                a.style.cssText = 'font-size:0.55rem;color:#666;margin-top:4px;';
+                a.textContent   = r.artist;
+
+                item.appendChild(t);
+                item.appendChild(a);
+                tray.appendChild(item);
+            });
+        }
+
+        // ─── VISUALIZER ──────────────────────────────────────────────────────
+        function drawVisualizer(analyser) {
+            const bufLen   = analyser.frequencyBinCount;
+            const data     = new Uint8Array(bufLen);
+
+            function draw() {
+                vizFrame = requestAnimationFrame(draw);
+                analyser.getByteFrequencyData(data);
+                canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
+
+                const barW = (canvas.width / bufLen) * 2.5;
+                let x = 0;
+                for (let i = 0; i < bufLen; i++) {
+                    const norm    = data[i] / 255;
+                    const barH    = norm * canvas.height;
+                    const alpha   = 0.3 + norm * 0.7;
+                    canvasCtx.fillStyle = `rgba(255,215,0,${alpha})`;
+                    canvasCtx.fillRect(x, canvas.height - barH, barW - 1, barH);
+                    x += barW;
+                }
+            }
+            draw();
+        }
+
+        function clearCanvas() {
+            canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
         }
     </script>
 </body>
