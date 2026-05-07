@@ -93,12 +93,19 @@
         .sri-artist { font-size: 0.65rem; color: var(--yellow); margin-top: 3px; text-transform: uppercase; letter-spacing: 1px; }
 
         /* CRATE TRAY */
-        .crate-tray { height: 160px; background: #000; border-top: 2px solid #222; padding: 20px; display: flex; gap: 15px; overflow-x: auto; }
+        .crate-tray { height: 160px; background: #000; border-top: 2px solid #222; padding: 20px; display: flex; gap: 15px; overflow-x: auto; align-items: stretch; }
         .crate-item {
             min-width: 130px; background: #0a0a0a; border: 1px solid #333; padding: 15px;
             border-bottom: 4px solid var(--yellow); display: flex; flex-direction: column; justify-content: flex-end;
         }
         .c-title { font-size: 0.75rem; font-weight: 900; color: #fff; text-transform: uppercase; overflow: hidden; text-overflow: ellipsis; }
+        .crate-clear {
+            min-width: 50px; background: transparent; border: 1px solid #222; color: #333;
+            font-family: monospace; font-size: 0.6rem; letter-spacing: 1px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; writing-mode: vertical-rl;
+            flex-shrink: 0;
+        }
+        .crate-clear:active { color: #ff4444; border-color: #ff4444; }
     </style>
 </head>
 <body>
@@ -131,7 +138,9 @@
         </div>
     </main>
 
-    <div class="crate-tray" id="crateTray"></div>
+    <div class="crate-tray" id="crateTray">
+        <button class="crate-clear" onclick="clearCrate()" title="Clear crate">CLEAR CRATE</button>
+    </div>
 
     <script>
         // ─── CONFIG ──────────────────────────────────────────────────────────
@@ -397,7 +406,9 @@
         // Safe DOM build — no innerHTML with user data
         function renderCrate() {
             const tray = document.getElementById('crateTray');
-            tray.innerHTML = '';
+            // Remove all track cards but keep the clear button
+            [...tray.querySelectorAll('.crate-item')].forEach(el => el.remove());
+
             [...myCrate].reverse().forEach(r => {
                 const item = document.createElement('div');
                 item.className = 'crate-item';
@@ -412,8 +423,15 @@
 
                 item.appendChild(t);
                 item.appendChild(a);
-                tray.appendChild(item);
+                // Insert before the clear button so new tracks appear left
+                tray.insertBefore(item, tray.querySelector('.crate-clear'));
             });
+        }
+
+        function clearCrate() {
+            myCrate = [];
+            localStorage.removeItem('sdrocer_crate');
+            renderCrate();
         }
 
         // ─── VISUALIZER ──────────────────────────────────────────────────────
@@ -475,7 +493,7 @@
 
             let response, rawText;
             try {
-                const url = `https://shazam.p.rapidapi.com/search?term=${encodeURIComponent(term)}&locale=en-US&offset=0&limit=6`;
+                const url = `https://shazam.p.rapidapi.com/v2/search?term=${encodeURIComponent(term)}&locale=en-US&offset=0&limit=6`;
                 response = await fetch(url, {
                     method: 'GET',
                     headers: {
