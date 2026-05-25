@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="theme-color" content="#050505">
+  <title>SDROCER</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="stylesheet" href="/src/style.css">
+</head>
+<body>
+
+  <header>
+    <div class="logo">SDROCER</div>
+    <div class="header-right">
+      <div class="view-toggle">
+        <button class="view-btn active" id="btn-view-scan">SCAN</button>
+        <button class="view-btn" id="btn-view-collection">CRATE</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ── SCAN VIEW ── -->
+  <div id="view-scan" class="active">
+
+    <main class="engine">
+      <div class="status-line" id="status-line">SYSTEM READY</div>
+
+      <div class="visualizer-wrap" id="vis-wrap">
+        <canvas id="visualizer"></canvas>
+      </div>
+
+      <button class="btn-listen" id="btn-listen">LISTEN</button>
+
+      <div class="result-card" id="result-card">
+        <img class="result-artwork" id="result-artwork" src="" alt="" style="display:none">
+        <div class="result-artwork-placeholder" id="result-artwork-placeholder">♪</div>
+        <div class="result-info">
+          <div class="result-title" id="result-title"></div>
+          <div class="result-artist" id="result-artist"></div>
+          <div class="result-meta">
+            <div class="result-meta-item">
+              <span class="label">LABEL</span>
+              <span class="value" id="result-label">—</span>
+            </div>
+            <div class="result-meta-item">
+              <span class="label">YEAR</span>
+              <span class="value" id="result-year">—</span>
+            </div>
+            <div class="result-meta-item">
+              <span class="label">BPM</span>
+              <span class="value" id="result-bpm">—</span>
+            </div>
+          </div>
+          <div class="result-actions">
+            <button class="btn-status" data-status="owned">OWN</button>
+            <button class="btn-status" data-status="want">WANT</button>
+            <button class="btn-status heard" data-status="heard">HEARD</button>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Discogs manual search -->
+    <div class="search-bar">
+      <input
+        class="search-input"
+        id="search-input"
+        type="text"
+        placeholder="SEARCH DISCOGS — ARTIST / TITLE"
+        autocomplete="off"
+        autocorrect="off"
+        autocapitalize="off"
+        spellcheck="false"
+      >
+      <button class="btn-search" id="btn-search">GO</button>
+    </div>
+
+    <!-- Discogs results dropdown -->
+    <div class="discogs-results" id="discogs-results"></div>
+
+    <!-- Crate tray -->
+    <div class="crate-tray" id="crate-tray">
+      <div class="crate-empty">CRATE EMPTY</div>
+    </div>
+
+  </div>
+
+  <!-- ── COLLECTION VIEW ── -->
+  <div id="view-collection">
+
+    <div class="collection-toolbar">
+      <button class="filter-btn active" data-filter="all">ALL</button>
+      <button class="filter-btn" data-filter="owned">OWNED</button>
+      <button class="filter-btn" data-filter="want">WANT</button>
+      <button class="filter-btn" data-filter="heard">HEARD</button>
+      <span class="collection-count" id="collection-count"></span>
+    </div>
+
+    <div class="collection-list" id="collection-list">
+      <div class="collection-empty">
+        <div>CRATE IS EMPTY</div>
+        <div style="color:#333">SCAN OR SEARCH TO ADD RECORDS</div>
+      </div>
+    </div>
+
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
