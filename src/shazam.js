@@ -7,7 +7,15 @@ export async function identify(base64Audio) {
     body: base64Audio
   });
 
-  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  if (!response.ok) {
+    const { status } = response;
+    if (status === 429) throw new Error('RATE LIMIT — WAIT A MOMENT AND TRY AGAIN');
+    if (status === 403) throw new Error('API QUOTA EXCEEDED — CHECK RAPIDAPI PLAN');
+    if (status === 404) throw new Error('API ENDPOINT UNAVAILABLE — CHECK RAPIDAPI');
+    if (status === 500) throw new Error('API KEY NOT CONFIGURED ON SERVER');
+    if (status === 502) throw new Error('SHAZAM UNREACHABLE — CHECK CONNECTION');
+    throw new Error(`UPSTREAM ERROR ${status}`);
+  }
 
   const data = await response.json();
   if (!data.track) return null;

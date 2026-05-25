@@ -12,24 +12,55 @@ export default async (req) => {
     });
   }
 
-  const body = await req.text();
+  let body;
+  try {
+    body = await req.text();
+  } catch {
+    return new Response(JSON.stringify({ error: 'Failed to read request body' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
 
-  const response = await fetch('https://shazam.p.rapidapi.com/songs/v2/detect', {
-    method: 'POST',
-    headers: {
-      'content-type': 'text/plain',
-      'X-RapidAPI-Key': apiKey,
-      'X-RapidAPI-Host': 'shazam.p.rapidapi.com'
-    },
-    body
-  });
+  let response;
+  try {
+    response = await fetch('https://shazam.p.rapidapi.com/songs/v2/detect', {
+      method: 'POST',
+      headers: {
+        'content-type': 'text/plain',
+        'X-RapidAPI-Key': apiKey,
+        'X-RapidAPI-Host': 'shazam.p.rapidapi.com'
+      },
+      body
+    });
+  } catch (err) {
+    return new Response(JSON.stringify({ error: `Network error: ${err.message}` }), {
+      status: 502,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
 
-  const data = await response.json();
+  // Forward non-OK status codes so the client can handle them meaningfully
+  if (!response.ok) {
+    const text = await response.text().catch(() => '');
+    return new Response(JSON.stringify({ error: `Upstream ${response.status}`, detail: text.slice(0, 200) }), {
+      status: response.status,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+
+  let data;
+  try {
+    data = await response.json();
+  } catch {
+    return new Response(JSON.stringify({ error: 'Invalid JSON from Shazam API' }), {
+      status: 502,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
 
   return new Response(JSON.stringify(data), {
     status: 200,
     headers: { 'Content-Type': 'application/json' }
   });
 };
-
-export const config = { path: '/api/shazam' };
