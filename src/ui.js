@@ -31,7 +31,7 @@ export function showVisualizer(analyser) {
     let x = 0;
     for (let i = 0; i < bufferLength; i++) {
       const h = dataArray[i] / 2;
-      ctx.fillStyle = `rgb(255, ${Math.max(0, 215 - h / 2)}, 0)`;
+      ctx.fillStyle = `rgb(${Math.min(255, 100 + h)}, ${Math.max(0, 100 - h / 3)}, 255)`;
       ctx.fillRect(x, canvas.height - h, barW, h);
       x += barW + 2;
     }
@@ -162,6 +162,8 @@ export function renderCollection(records, onStatusChange, onRemove) {
 
     const sub = [r.label, r.year].filter(Boolean).join(' · ');
 
+    const discogsHref = r.discogsUrl || `https://www.discogs.com/search/?q=${encodeURIComponent(r.artist + ' ' + r.title)}&type=release`;
+
     return `
       <div class="collection-record">
         ${artHtml}
@@ -172,6 +174,7 @@ export function renderCollection(records, onStatusChange, onRemove) {
         </div>
         <div class="collection-right">
           <span class="status-badge ${r.status}">${r.status.toUpperCase()}</span>
+          <a class="btn-discogs" href="${discogsHref}" target="_blank" rel="noopener" title="View on Discogs">D</a>
           <button class="btn-remove" data-id="${r.id}" title="Remove">✕</button>
         </div>
       </div>`;
@@ -207,8 +210,10 @@ export function renderCrate(records) {
       ? `<img class="crate-item-art" src="${r.artwork}" alt="" loading="lazy">`
       : `<div class="crate-item-art-placeholder">♪</div>`;
 
+    const discogsHref = r.discogsUrl || `https://www.discogs.com/search/?q=${encodeURIComponent(r.artist + ' ' + r.title)}&type=release`;
+
     return `
-      <div class="crate-item">
+      <div class="crate-item" data-discogs="${discogsHref}">
         ${artHtml}
         <div class="crate-status-dot ${r.status}"></div>
         <div class="crate-item-label">
@@ -217,4 +222,10 @@ export function renderCrate(records) {
         </div>
       </div>`;
   }).join('');
+
+  tray.querySelectorAll('.crate-item').forEach(el => {
+    el.addEventListener('click', () => {
+      window.open(el.dataset.discogs, '_blank', 'noopener');
+    });
+  });
 }
