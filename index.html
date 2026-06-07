@@ -206,7 +206,7 @@
 
             // 2. AudioContext — webkit prefix for older iOS Safari
             const AudioCtx = window.AudioContext || window.webkitAudioContext;
-            const audioCtx = new AudioCtx();
+            const audioCtx = new AudioCtx({ sampleRate: 44100 }); // Shazam requires exactly 44100 Hz
 
             // iOS suspends AudioContext until a user-gesture tick — resume it
             if (audioCtx.state === 'suspended') {
